@@ -1158,9 +1158,30 @@ tr:last-child td { border-bottom: none; }
       <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importBackup(this)"/>
     </div>
   </div>
+  <!-- SUPABASE SYNC CARD -->
+  <div class="card" style="margin-bottom:16px;border-left:4px solid var(--primary);">
+    <div class="section-label">☁️ Cloud Sync (Supabase)</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px;" id="syncInfo">Not signed in — data stays local only</p>
+    <p style="font-size:11px;color:var(--text-light);margin-bottom:14px;" id="syncStatus"></p>
+    <div id="syncSignInArea">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Enter your email — we'll send you a magic link to sign in on any device:</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="email" id="syncEmailInput" placeholder="your@email.com" style="flex:1;min-width:200px;"/>
+        <button class="btn-sm" onclick="signInWithMagicLink()">✉️ Send Magic Link</button>
+      </div>
+    </div>
+    <div id="syncSignedInArea" style="display:none;">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button class="btn-sm" onclick="pullFromSupabase()" style="background:var(--bg-section);color:var(--text);">🔄 Pull from Cloud</button>
+        <button class="btn-sm" onclick="pushToSupabase()" style="background:var(--bg-section);color:var(--text);">⬆️ Push to Cloud</button>
+        <button class="btn-sm" id="syncBtn" onclick="signOut()" style="background:#fce8e8;color:#b30000;">🔴 Sign Out</button>
+      </div>
+    </div>
+  </div>
+
   <div class="privacy-note">
     <span class="icon">🔒</span>
-    <span>All your data stays in <strong>your browser only</strong> — nothing is sent to any server. Your reading list is completely private.</span>
+    <span>When signed out, data stays in <strong>your browser only</strong>. When signed in with Google, your library syncs to Supabase (free, private, yours).</span>
   </div>
   <div class="card" style="margin-top:16px;">
     <h3 style="font-family:var(--font-display);margin-bottom:8px;font-size:1rem;">📱 Using on your phone</h3>
@@ -1206,7 +1227,132 @@ tr:last-child td { border-bottom: none; }
 
 <div id="toast"></div>
 
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+// ===================== SUPABASE CONFIG =====================
+// Replace xxx with your actual Supabase keys
+const SUPABASE_URL = 'https://nctmtedmxlmcmfhtyxyy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdG10ZWRteGxtY21maHR5eHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MDIxODQsImV4cCI6MjA5NzE3ODE4NH0.Q5FmlMfWDJoY-uwfARubw7bnQ3Nf3-LmWLje5PryImE';
+
+let sbClient = null;
+let currentUser = null;
+let syncEnabled = false;
+
+function initSupabase() {
+  if (SUPABASE_URL === 'xxx' || SUPABASE_ANON_KEY === 'xxx') return;
+  try {
+    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    checkSession();
+  } catch(e) { console.warn('Supabase init failed', e); }
+}
+
+async function checkSession() {
+  if (!sbClient) return;
+  const { data: { session } } = await sbClient.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    syncEnabled = true;
+    updateSyncUI(true);
+    await pullFromSupabase();
+  }
+  sbClient.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN') {
+      currentUser = session.user;
+      syncEnabled = true;
+      updateSyncUI(true);
+      await pullFromSupabase();
+      showToast('☁️ Signed in — library synced!');
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      syncEnabled = false;
+      updateSyncUI(false);
+      showToast('Signed out');
+    }
+  });
+}
+
+async function signInWithMagicLink() {
+  if (!sbClient) { showToast('⚠️ Supabase not configured yet'); return; }
+  const email = document.getElementById('syncEmailInput').value.trim();
+  if (!email) { showToast('Please enter your email'); return; }
+  const { error } = await sbClient.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.href }
+  });
+  if (error) { showToast('⚠️ ' + error.message); return; }
+  showToast('✅ Check your email for a magic link!');
+  document.getElementById('syncEmailInput').value = '';
+}
+
+async function signOut() {
+  if (!sbClient) return;
+  await sbClient.auth.signOut();
+}
+
+async function pushToSupabase() {
+  if (!sbClient || !currentUser) return;
+  try {
+    const { error } = await sbClient.from('books').upsert({
+      user_id: currentUser.id,
+      data: JSON.stringify(library),
+      goal: getGoal(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+    updateSyncStatus('✅ Synced just now');
+  } catch(e) {
+    console.warn('Sync push failed', e);
+    updateSyncStatus('⚠️ Sync failed');
+  }
+}
+
+async function pullFromSupabase() {
+  if (!sbClient || !currentUser) return;
+  try {
+    const { data, error } = await sbClient
+      .from('libraries')
+      .select('data, goal')
+      .eq('user_id', currentUser.id)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (data && data.data) {
+      const remote = JSON.parse(data.data || '[]');
+      if (remote.length > 0) {
+        library = remote;
+        saveLibraryLocal();
+        if (data.goal) localStorage.setItem('bp_goal', data.goal);
+        renderDashboard();
+        renderTable();
+      }
+    }
+    updateSyncStatus('✅ Synced just now');
+  } catch(e) {
+    console.warn('Sync pull failed', e);
+    updateSyncStatus('⚠️ Sync failed');
+  }
+}
+
+function updateSyncUI(loggedIn) {
+  const info = document.getElementById('syncInfo');
+  const signInArea = document.getElementById('syncSignInArea');
+  const signedInArea = document.getElementById('syncSignedInArea');
+  if (loggedIn) {
+    if (info) info.textContent = '☁️ Signed in as ' + currentUser.email;
+    if (signInArea) signInArea.style.display = 'none';
+    if (signedInArea) signedInArea.style.display = 'block';
+  } else {
+    if (info) info.textContent = 'Not signed in — data stays local only';
+    if (signInArea) signInArea.style.display = 'block';
+    if (signedInArea) signedInArea.style.display = 'none';
+  }
+}
+
+function updateSyncStatus(msg) {
+  const el = document.getElementById('syncStatus');
+  if (el) el.textContent = msg;
+}
+
 // ===================== DATA =====================
 let library = JSON.parse(localStorage.getItem('bp_library') || '[]');
 let currentRating = 0;
@@ -1216,14 +1362,19 @@ let coverData = null;
 let galleryFilter = 'all';
 let olTimer = null;
 
-function saveLibrary() {
+function saveLibraryLocal() {
   localStorage.setItem('bp_library', JSON.stringify(library));
+}
+function saveLibrary() {
+  saveLibraryLocal();
+  if (syncEnabled) pushToSupabase();
 }
 function getGoal() { return parseInt(localStorage.getItem('bp_goal') || '0'); }
 function saveGoal() {
   const v = parseInt(document.getElementById('goalInput').value);
   if (!v || v < 1) { showToast('Please enter a valid goal'); return; }
   localStorage.setItem('bp_goal', v);
+  if (syncEnabled) pushToSupabase();
   showToast(`Goal set: ${v} books!`);
   renderDashboard();
 }
@@ -1771,13 +1922,53 @@ function importBackup(input) {
   reader.onload = e => {
     try {
       const data = JSON.parse(e.target.result);
-      library = data.library || data;
+
+      // Detect old v1 format (app: "booked-and-planned", books array)
+      let rawBooks = data.library || data.books || (Array.isArray(data) ? data : null);
+      if (!rawBooks) throw new Error('No books found');
+
+      // Status mapping from old format to new
+      const statusMap = {
+        'read': 'Finished',
+        'reading': 'Reading',
+        'want': 'Want to Read',
+        'want to read': 'Want to Read',
+        'dnf': 'Did Not Finish',
+        'did not finish': 'Did Not Finish',
+        'wishlist': 'Wishlist'
+      };
+
+      library = rawBooks.map(b => ({
+        id: String(b.id || Date.now() + Math.random()),
+        title: b.title || '',
+        author: b.author || '',
+        genre: b.genre || '',
+        subGenre: b.subGenre || b.subgenre || '',
+        status: statusMap[(b.status||'').toLowerCase()] || b.status || 'Finished',
+        format: b.format || '',
+        source: b.source || '',
+        pages: parseInt(b.pages) || 0,
+        currentPage: parseInt(b.currentPage) || 0,
+        cost: b.cost || '',
+        started: b.started || b.start || '',
+        finished: b.finished || b.end || '',
+        rating: parseInt(b.rating) || 0,
+        review: b.review || b.notes || '',
+        cover: b.cover || '',
+        pdf: b.pdf || null,
+        addedAt: b.addedAt ? new Date(b.addedAt).getTime() : Date.now()
+      }));
+
       if (data.goal) localStorage.setItem('bp_goal', data.goal);
       saveLibrary();
-      document.getElementById('importLabel').textContent = '✅ Imported!';
+      document.getElementById('importLabel').textContent = `✅ Imported ${library.length} books!`;
       showToast(`✅ Imported ${library.length} books!`);
       renderDashboard();
-    } catch { showToast('⚠️ Invalid backup file'); }
+      renderTable();
+    } catch(err) {
+      console.error(err);
+      showToast('⚠️ Could not read backup file');
+    }
   };
   reader.readAsText(file);
 }
@@ -1785,6 +1976,7 @@ function importBackup(input) {
 // ===================== INIT =====================
 renderDashboard();
 renderTable();
+initSupabase();
 </script>
 </body>
 </html>
