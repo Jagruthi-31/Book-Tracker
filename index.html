@@ -1321,9 +1321,10 @@ async function pushToSupabase() {
 
 async function pullFromSupabase() {
   if (!sbClient || !currentUser) return;
+  updateSyncStatus('🔄 Syncing...');
   try {
     const { data, error } = await sbClient
-      .from('libraries')
+      .from('books')
       .select('data, goal')
       .eq('user_id', currentUser.id)
       .single();
@@ -1336,12 +1337,14 @@ async function pullFromSupabase() {
         if (data.goal) localStorage.setItem('bp_goal', data.goal);
         renderDashboard();
         renderTable();
+        showToast('☁️ Library synced from cloud!');
       }
     }
     updateSyncStatus('✅ Synced just now');
   } catch(e) {
-    console.warn('Sync pull failed', e);
-    updateSyncStatus('⚠️ Sync failed');
+    console.error('Sync pull failed', e);
+    updateSyncStatus('⚠️ Sync failed: ' + e.message);
+    showToast('⚠️ Sync failed: ' + e.message);
   }
 }
 
