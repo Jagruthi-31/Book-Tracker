@@ -1164,10 +1164,14 @@ tr:last-child td { border-bottom: none; }
     <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px;" id="syncInfo">Not signed in — data stays local only</p>
     <p style="font-size:11px;color:var(--text-light);margin-bottom:14px;" id="syncStatus"></p>
     <div id="syncSignInArea">
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Enter your email — we'll send you a magic link to sign in on any device:</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="email" id="syncEmailInput" placeholder="your@email.com" style="flex:1;min-width:200px;"/>
-        <button class="btn-sm" onclick="signInWithMagicLink()">✉️ Send Magic Link</button>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Sign in to sync your books across all devices:</p>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:340px;">
+        <input type="email" id="syncEmailInput" placeholder="your@email.com"/>
+        <input type="password" id="syncPasswordInput" placeholder="Password (min 6 characters)"/>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-sm" onclick="signIn()" style="flex:1;">🔐 Sign In</button>
+          <button class="btn-sm" onclick="signUp()" style="flex:1;background:var(--bg-section);color:var(--text);">✨ Sign Up</button>
+        </div>
       </div>
     </div>
     <div id="syncSignedInArea" style="display:none;">
@@ -1272,17 +1276,25 @@ async function checkSession() {
   });
 }
 
-async function signInWithMagicLink() {
+async function signUp() {
   if (!sbClient) { showToast('⚠️ Supabase not configured yet'); return; }
   const email = document.getElementById('syncEmailInput').value.trim();
-  if (!email) { showToast('Please enter your email'); return; }
-  const { error } = await sbClient.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.href }
-  });
+  const password = document.getElementById('syncPasswordInput').value;
+  if (!email || !password) { showToast('Enter email and password'); return; }
+  if (password.length < 6) { showToast('Password must be at least 6 characters'); return; }
+  const { error } = await sbClient.auth.signUp({ email, password });
   if (error) { showToast('⚠️ ' + error.message); return; }
-  showToast('✅ Check your email for a magic link!');
-  document.getElementById('syncEmailInput').value = '';
+  showToast('✅ Account created! You are now signed in.');
+}
+
+async function signIn() {
+  if (!sbClient) { showToast('⚠️ Supabase not configured yet'); return; }
+  const email = document.getElementById('syncEmailInput').value.trim();
+  const password = document.getElementById('syncPasswordInput').value;
+  if (!email || !password) { showToast('Enter email and password'); return; }
+  const { error } = await sbClient.auth.signInWithPassword({ email, password });
+  if (error) { showToast('⚠️ ' + error.message); return; }
+  showToast('✅ Signed in!');
 }
 
 async function signOut() {
