@@ -764,11 +764,58 @@ tr:last-child td { border-bottom: none; }
 .reading-loading { text-align: center; padding: 16px; color: var(--text-muted); font-size: 13px; }
 
 @media (max-width: 600px) {
-  .card-grid { grid-template-columns: repeat(2, 1fr); }
-  .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
-  .modal-book-layout { flex-direction: column; }
+  body { font-size: 15px; }
+  .section { padding: 16px 12px; }
+  .top-nav { padding: 0 14px; }
   .top-nav-brand { font-size: 1rem; }
-  .goal-section { flex-direction: column; align-items: flex-start; }
+  .version-badge { display: none; }
+  .bottom-nav-item { font-size: 9px; }
+  .bottom-nav-item .nav-icon { font-size: 22px; }
+  .section-title { font-size: 1.25rem; }
+  .card-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-number { font-size: 1.6rem; }
+  .stat-label { font-size: 10px; }
+  .goal-section { flex-direction: column; align-items: flex-start; gap: 16px; }
+  table th:nth-child(4), table td:nth-child(4),
+  table th:nth-child(5), table td:nth-child(5),
+  table th:nth-child(6), table td:nth-child(6),
+  table th:nth-child(9), table td:nth-child(9) { display: none; }
+  table { font-size: 12px; }
+  th, td { padding: 10px 8px; }
+  .status-badge { font-size: 10px; padding: 2px 7px; }
+  .action-btns { flex-direction: column; gap: 3px; }
+  .btn-action { font-size: 11px; padding: 4px 7px; }
+  .search-filter-bar { flex-direction: column; }
+  .search-wrap, .filter-select, .sort-select { width: 100%; }
+  .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+  .gallery-info { padding: 8px; }
+  .gallery-title { font-size: 11px; }
+  .gallery-author { font-size: 9px; }
+  .form-grid { grid-template-columns: 1fr; gap: 12px; }
+  .submit-btn { font-size: 15px; padding: 14px; }
+  .autofill-bar { flex-direction: column; }
+  .card { padding: 14px; }
+  .donut-grid { grid-template-columns: 1fr; }
+  .modal-box { max-height: 85vh; border-radius: var(--radius-md); }
+  .modal-book-layout { flex-direction: column; }
+  .modal-cover, .modal-cover-ph { width: 80px; height: 116px; }
+  .year-grid { grid-template-columns: repeat(2, 1fr); }
+  .month-row { grid-template-columns: 50px 1fr 30px; font-size: 12px; }
+  .backup-grid { grid-template-columns: 1fr; }
+  input, select, textarea {
+    font-size: 16px !important;
+    padding: 10px 12px;
+  }
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(64px + env(safe-area-inset-bottom));
+  }
+  body {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
 }
 </style>
 </head>
