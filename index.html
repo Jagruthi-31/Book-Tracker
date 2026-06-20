@@ -1397,14 +1397,21 @@ async function pullFromSupabase() {
       .single();
     if (error && error.code !== 'PGRST116') throw error;
     if (data && data.data) {
-      const remote = JSON.parse(data.data || '[]');
+      let remote = JSON.parse(data.data || '[]');
       if (remote.length > 0) {
-        library = remote;
+        // Strip any legacy base64 PDFs/covers from the cloud copy itself
+        // before touching localStorage — prevents repeated quota errors
+        const { cleaned, changed } = stripLegacyBase64(remote);
+        library = cleaned;
         saveLibraryLocal();
         if (data.goal) localStorage.setItem('bp_goal', data.goal);
         renderDashboard();
         renderTable();
-        showToast('☁️ Library synced from cloud!');
+        if (changed) {
+          showToast('☁️ Synced — old large PDFs were cleared, please re-attach them');
+        } else {
+          showToast('☁️ Library synced from cloud!');
+        }
       }
     }
     updateSyncStatus('✅ Synced just now');
@@ -1436,7 +1443,17 @@ function updateSyncStatus(msg) {
 }
 
 // ===================== DATA =====================
-let library = JSON.parse(localStorage.getItem('bp_library') || '[]');
+function loadLibrarySafe() {
+  let raw = localStorage.getItem('bp_library') || '[]';
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = [];
+  }
+  return parsed;
+}
+let library = loadLibrarySafe();
 let currentRating = 0;
 let editingId = null;
 let pdfPendingFile = null;
@@ -1444,8 +1461,44 @@ let coverData = null;
 let galleryFilter = 'all';
 let olTimer = null;
 
+// Strips old large base64 data (legacy PDFs/covers) so storage never overflows.
+// Keeps the small Supabase Storage URL pdfs (they start with http) intact.
+function stripLegacyBase64(arr) {
+  let changed = false;
+  const cleaned = arr.map(b => {
+    const copy = { ...b };
+    if (copy.pdf && typeof copy.pdf === 'string' && copy.pdf.startsWith('data:')) {
+      copy.pdf = null; // legacy base64 PDF — too large, drop it
+      changed = true;
+    }
+    if (copy.cover && typeof copy.cover === 'string' && copy.cover.startsWith('data:') && copy.cover.length > 100000) {
+      copy.cover = ''; // legacy huge base64 cover — drop it, keep URL covers
+      changed = true;
+    }
+    return copy;
+  });
+  return { cleaned, changed };
+}
+
 function saveLibraryLocal() {
-  localStorage.setItem('bp_library', JSON.stringify(library));
+  try {
+    localStorage.setItem('bp_library', JSON.stringify(library));
+  } catch (e) {
+    if (e.name === 'QuotaExceededError' || /quota/i.test(e.message)) {
+      // Auto-heal: strip any legacy base64 PDFs/covers bloating storage, then retry once
+      const { cleaned, changed } = stripLegacyBase64(library);
+      library = cleaned;
+      try {
+        localStorage.setItem('bp_library', JSON.stringify(library));
+        if (changed) showToast('⚠️ Storage was full — removed old large PDF/cover data. Re-upload PDFs to save them to the cloud.');
+      } catch (e2) {
+        showToast('⚠️ Storage still full. Export a backup, then ask for help clearing space.');
+      }
+    } else {
+      console.error('Save failed', e);
+      showToast('⚠️ Could not save: ' + e.message);
+    }
+  }
 }
 function saveLibrary() {
   saveLibraryLocal();
@@ -2086,9 +2139,17 @@ function importBackup(input) {
       }));
 
       if (data.goal) localStorage.setItem('bp_goal', data.goal);
+
+      // Strip any legacy base64 PDFs/covers from the imported backup
+      // so we don't hit storage quota errors right after import
+      const { cleaned, changed } = stripLegacyBase64(library);
+      library = cleaned;
+
       saveLibrary();
       document.getElementById('importLabel').textContent = `✅ Imported ${library.length} books!`;
-      showToast(`✅ Imported ${library.length} books!`);
+      showToast(changed
+        ? `✅ Imported ${library.length} books! Old large PDFs were cleared — please re-attach them.`
+        : `✅ Imported ${library.length} books!`);
       renderDashboard();
       renderTable();
     } catch(err) {
