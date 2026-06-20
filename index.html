@@ -1439,7 +1439,7 @@ function updateSyncStatus(msg) {
 let library = JSON.parse(localStorage.getItem('bp_library') || '[]');
 let currentRating = 0;
 let editingId = null;
-let pdfData = null;
+let pdfPendingFile = null;
 let coverData = null;
 let galleryFilter = 'all';
 let olTimer = null;
@@ -1516,15 +1516,36 @@ function handleCoverFile(input) {
   };
   reader.readAsDataURL(file);
 }
+// raw File object waiting to be uploaded to Supabase Storage on save
 function handlePdfFile(input) {
   const file = input.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    pdfData = e.target.result;
-    document.getElementById('pdfLabel').textContent = '✅ ' + file.name;
-  };
-  reader.readAsDataURL(file);
+  if (file.size > 50 * 1024 * 1024) {
+    showToast('⚠️ PDF too large (max 50MB)');
+    return;
+  }
+  pdfPendingFile = file;
+  document.getElementById('pdfLabel').textContent = '📎 ' + file.name + ' (will upload on save)';
+}
+
+async function uploadPdfToStorage(file, bookId) {
+  if (!sbClient || !currentUser) {
+    showToast('⚠️ Sign in (Backup tab) to attach PDFs — they need cloud storage');
+    return null;
+  }
+  try {
+    const path = `${currentUser.id}/${bookId}.pdf`;
+    const { error } = await sbClient.storage
+      .from('book-pdfs')
+      .upload(path, file, { upsert: true, contentType: 'application/pdf' });
+    if (error) throw error;
+    const { data: urlData } = sbClient.storage.from('book-pdfs').getPublicUrl(path);
+    return urlData.publicUrl;
+  } catch (e) {
+    console.error('PDF upload failed', e);
+    showToast('⚠️ PDF upload failed: ' + e.message);
+    return null;
+  }
 }
 
 // ===================== OPEN LIBRARY =====================
@@ -1589,16 +1610,32 @@ function setRating(r) {
 }
 
 // ===================== SAVE BOOK =====================
-function saveBook() {
+async function saveBook() {
   const title = document.getElementById('bookTitle').value.trim();
   const author = document.getElementById('bookAuthor').value.trim();
   if (!title || !author) { showToast('Please fill in Title and Author'); return; }
 
   const coverUrlVal = document.getElementById('coverUrl').value.trim();
   const finalCover = coverData || (coverUrlVal || '');
+  const bookId = editingId || Date.now().toString();
+
+  // Keep existing PDF URL unless a new file was chosen
+  let finalPdfUrl = editingId ? (library.find(b=>b.id===editingId)||{}).pdf || null : null;
+
+  if (pdfPendingFile) {
+    const submitBtn = document.querySelector('.submit-btn');
+    const origText = submitBtn.textContent;
+    submitBtn.textContent = '⏳ Uploading PDF…';
+    submitBtn.disabled = true;
+    const url = await uploadPdfToStorage(pdfPendingFile, bookId);
+    submitBtn.textContent = origText;
+    submitBtn.disabled = false;
+    if (url) finalPdfUrl = url;
+    // if upload failed, finalPdfUrl keeps previous value (or null) — book still saves
+  }
 
   const book = {
-    id: editingId || Date.now().toString(),
+    id: bookId,
     title,
     author,
     genre: document.getElementById('bookGenre').value,
@@ -1614,7 +1651,7 @@ function saveBook() {
     rating: currentRating,
     review: document.getElementById('bookReview').value,
     cover: finalCover,
-    pdf: pdfData || (editingId ? (library.find(b=>b.id===editingId)||{}).pdf : null),
+    pdf: finalPdfUrl,
     addedAt: editingId ? (library.find(b=>b.id===editingId)||{}).addedAt : Date.now()
   };
 
@@ -1644,7 +1681,7 @@ function resetForm() {
   document.getElementById('addFormTitle').textContent = 'Add a Book';
   document.getElementById('cancelEditBtn').style.display = 'none';
   setRating(0);
-  currentRating = 0; pdfData = null; coverData = null; editingId = null;
+  currentRating = 0; pdfPendingFile = null; coverData = null; editingId = null;
   document.getElementById('editId').value = '';
 }
 function cancelEdit() { resetForm(); switchTab('sec-tracker'); }
@@ -1677,6 +1714,8 @@ function editBook(id) {
   if (b.cover) { const img = document.getElementById('coverPreview'); img.src = b.cover; img.classList.add('visible'); }
   setRating(b.rating || 0);
   currentRating = b.rating || 0;
+  pdfPendingFile = null;
+  document.getElementById('pdfLabel').textContent = b.pdf ? '✅ PDF already attached (tap to replace)' : 'Click to upload your PDF book';
   document.getElementById('currentPageField').style.display = b.status === 'Reading' ? 'block' : 'none';
   document.getElementById('addFormTitle').textContent = 'Edit Book';
   document.getElementById('cancelEditBtn').style.display = 'block';
@@ -1988,24 +2027,8 @@ document.getElementById('bookModal').addEventListener('click', function(e) {
 function openPdf(id) {
   const b = library.find(x=>x.id===id);
   if (!b || !b.pdf) { showToast('⚠️ No PDF attached'); return; }
-  try {
-    // Convert base64 data URL to a Blob, then to an object URL.
-    // This works reliably on mobile browsers (iOS Safari, Chrome Android)
-    // unlike writing an <embed> into a blank popup window.
-    const base64 = b.pdf.split(',')[1];
-    const byteChars = atob(base64);
-    const byteNumbers = new Array(byteChars.length);
-    for (let i = 0; i < byteChars.length; i++) {
-      byteNumbers[i] = byteChars.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'application/pdf' });
-    const blobUrl = URL.createObjectURL(blob);
-    window.open(blobUrl, '_blank');
-  } catch (e) {
-    console.error('PDF open failed', e);
-    showToast('⚠️ Could not open PDF — try re-uploading it');
-  }
+  // b.pdf is now a direct Supabase Storage URL — opens natively in any browser, any device
+  window.open(b.pdf, '_blank');
 }
 
 // ===================== BACKUP =====================
