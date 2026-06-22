@@ -745,6 +745,66 @@ tr:last-child td { border-bottom: none; }
 }
 .modal-review { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light); font-size: 13px; color: var(--text-muted); line-height: 1.6; font-style: italic; }
 
+
+/* ===================== PDF READER ===================== */
+.pdf-reader-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #1a1a1a;
+  z-index: 4000;
+  flex-direction: column;
+}
+.pdf-reader-overlay.open { display: flex; }
+.pdf-reader-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: #fff;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.pdf-reader-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pdf-reader-close {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.pdf-reader-close:hover { background: rgba(255,255,255,0.35); }
+.pdf-reader-open-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pdf-reader-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #2a2a2a;
+}
+
 /* ===================== TOAST ===================== */
 #toast {
   position: fixed;
@@ -923,6 +983,25 @@ tr:last-child td { border-bottom: none; }
       <div id="ratingChart"></div>
     </div>
   </div>
+
+  <!-- YEAR IN BOOKS (embedded in dashboard) -->
+  <hr class="divider" style="margin:28px 0 20px;"/>
+  <div class="section-header" style="margin-bottom:16px;">
+    <div>
+      <div class="section-title" style="font-size:1.2rem;">📅 Year in Books</div>
+      <div class="section-subtitle">— Monthly reading overview —</div>
+    </div>
+    <select id="yearSelect" class="filter-select" style="width:auto;" onchange="renderYear()"></select>
+  </div>
+  <div class="year-grid" style="margin-bottom:16px;">
+    <div class="stat-card"><div class="stat-number" id="yearTotal">0</div><div class="stat-label">Books Finished</div></div>
+    <div class="stat-card"><div class="stat-number" id="yearPages">0</div><div class="stat-label">Pages Read</div></div>
+    <div class="stat-card"><div class="stat-number" id="yearAvgRating">—</div><div class="stat-label">Avg Rating</div></div>
+  </div>
+  <div class="card">
+    <div class="section-label">📅 Month by Month</div>
+    <div id="monthBars"></div>
+  </div>
 </section>
 
 <!-- BOOK TRACKER -->
@@ -1012,44 +1091,7 @@ tr:last-child td { border-bottom: none; }
   </div>
 </section>
 
-<!-- WISHLIST -->
-<section id="sec-wishlist" class="section">
-  <div class="section-header">
-    <div>
-      <div class="section-title">Wishlist</div>
-      <div class="section-subtitle">— Books you want to read —</div>
-    </div>
-  </div>
-  <div class="form-field" style="margin-bottom:12px;">
-    <label><input type="checkbox" id="wishIncludePurchased" onchange="renderWishlist()"/> Include purchased / owned books</label>
-  </div>
-  <div class="gallery-grid" id="wishlistGrid"></div>
-  <div id="wishlistEmpty" class="empty-state" style="display:none;">
-    <div class="empty-state-icon">⭐</div>
-    <h3>Wishlist is empty</h3>
-    <p>Add books with status "Wishlist" or "Want to Read"</p>
-  </div>
-</section>
 
-<!-- YEAR IN BOOKS -->
-<section id="sec-year" class="section">
-  <div class="section-header">
-    <div>
-      <div class="section-title">Year in Books</div>
-      <div class="section-subtitle">— Monthly reading overview —</div>
-    </div>
-    <select id="yearSelect" class="filter-select" style="width:auto;" onchange="renderYear()"></select>
-  </div>
-  <div class="year-grid">
-    <div class="stat-card"><div class="stat-number" id="yearTotal">0</div><div class="stat-label">Books Finished</div></div>
-    <div class="stat-card"><div class="stat-number" id="yearPages">0</div><div class="stat-label">Pages Read</div></div>
-    <div class="stat-card"><div class="stat-number" id="yearAvgRating">—</div><div class="stat-label">Avg Rating</div></div>
-  </div>
-  <div class="card">
-    <div class="section-label">📅 Month by Month</div>
-    <div id="monthBars"></div>
-  </div>
-</section>
 
 <!-- ADD BOOK -->
 <section id="sec-add" class="section">
@@ -1267,19 +1309,23 @@ tr:last-child td { border-bottom: none; }
   <button class="bottom-nav-item" onclick="switchTab('sec-gallery')" id="nav-sec-gallery">
     <span class="nav-icon">🖼️</span>Gallery
   </button>
-  <button class="bottom-nav-item" onclick="switchTab('sec-wishlist')" id="nav-sec-wishlist">
-    <span class="nav-icon">🔖</span>Wish
-  </button>
   <button class="bottom-nav-item" onclick="switchTab('sec-add')" id="nav-sec-add">
     <span class="nav-icon">➕</span>Add
-  </button>
-  <button class="bottom-nav-item" onclick="switchTab('sec-year')" id="nav-sec-year">
-    <span class="nav-icon">📅</span>Year
   </button>
   <button class="bottom-nav-item" onclick="switchTab('sec-backup')" id="nav-sec-backup">
     <span class="nav-icon">💾</span>Backup
   </button>
 </nav>
+
+<!-- PDF READER OVERLAY -->
+<div class="pdf-reader-overlay" id="pdfReader">
+  <div class="pdf-reader-bar">
+    <span class="pdf-reader-title" id="pdfReaderTitle">Reading…</span>
+    <button class="pdf-reader-open-btn" onclick="openPdfExternal()" title="Open in browser tab">⬆️ Open in Tab</button>
+    <button class="pdf-reader-close" onclick="closePdfReader()" title="Close">✕</button>
+  </div>
+  <iframe class="pdf-reader-frame" id="pdfReaderFrame" src="" allowfullscreen></iframe>
+</div>
 
 <!-- BOOK DETAIL MODAL -->
 <div class="modal-overlay" id="bookModal">
@@ -1523,8 +1569,6 @@ function switchTab(id) {
   if (id === 'sec-dash') renderDashboard();
   if (id === 'sec-tracker') renderTable();
   if (id === 'sec-gallery') renderGallery();
-  if (id === 'sec-wishlist') renderWishlist();
-  if (id === 'sec-year') renderYear();
 }
 
 // ===================== DARK MODE =====================
@@ -1929,6 +1973,7 @@ function renderDashboard() {
   renderDonutChart('formatChart', library, 'format');
   renderDonutChart('sourceChart', library, 'source');
   renderRatingChart();
+  renderYear();
 }
 
 const CHART_COLORS = ['#6b1a1a','#c0856a','#c9a84c','#7a5c8a','#3a7a5c','#5c7a9a','#9a5c3a','#6a7a3a'];
@@ -1983,29 +2028,6 @@ function renderGallery() {
         <div class="gallery-title">${b.title}</div>
         <div class="gallery-author">${b.author}</div>
         <div class="gallery-stars">${'★'.repeat(b.rating||0)}</div>
-      </div>
-    </div>`).join('');
-}
-
-// ===================== WISHLIST =====================
-function renderWishlist() {
-  const includeOwned = document.getElementById('wishIncludePurchased').checked;
-  let books = library.filter(b => b.status === 'Wishlist' || b.status === 'Want to Read');
-  if (includeOwned) books = [...books, ...library.filter(b => b.source === 'Purchased' && !books.includes(b))];
-  const grid = document.getElementById('wishlistGrid');
-  const empty = document.getElementById('wishlistEmpty');
-  if (!books.length) { grid.innerHTML=''; empty.style.display='block'; return; }
-  empty.style.display='none';
-  grid.innerHTML = books.map(b => `
-    <div class="gallery-card" onclick="openModal('${b.id}')">
-      <div class="gallery-cover-wrap">
-        ${b.cover ? `<img src="${b.cover}" class="gallery-cover" alt=""/>` : `<div class="gallery-cover-placeholder">📚</div>`}
-        ${b.pdf ? `<span class="pdf-badge" title="PDF attached">PDF</span>` : ''}
-      </div>
-      <div class="gallery-info">
-        <div class="gallery-title">${b.title}</div>
-        <div class="gallery-author">${b.author}</div>
-        <div class="detail-chip" style="font-size:10px;">${b.status}</div>
       </div>
     </div>`).join('');
 }
@@ -2077,11 +2099,28 @@ document.getElementById('bookModal').addEventListener('click', function(e) {
 });
 
 // ===================== PDF =====================
+let currentPdfUrl = null;
+
 function openPdf(id) {
   const b = library.find(x=>x.id===id);
   if (!b || !b.pdf) { showToast('⚠️ No PDF attached'); return; }
-  // b.pdf is now a direct Supabase Storage URL — opens natively in any browser, any device
-  window.open(b.pdf, '_blank');
+  currentPdfUrl = b.pdf;
+  document.getElementById('pdfReaderTitle').textContent = b.title;
+  document.getElementById('pdfReaderFrame').src = b.pdf;
+  document.getElementById('pdfReader').classList.add('open');
+  // Prevent body scroll while reader is open
+  document.body.style.overflow = 'hidden';
+}
+
+function closePdfReader() {
+  document.getElementById('pdfReader').classList.remove('open');
+  document.getElementById('pdfReaderFrame').src = '';
+  document.body.style.overflow = '';
+  currentPdfUrl = null;
+}
+
+function openPdfExternal() {
+  if (currentPdfUrl) window.open(currentPdfUrl, '_blank');
 }
 
 // ===================== BACKUP =====================
