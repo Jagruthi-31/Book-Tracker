@@ -745,66 +745,6 @@ tr:last-child td { border-bottom: none; }
 }
 .modal-review { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light); font-size: 13px; color: var(--text-muted); line-height: 1.6; font-style: italic; }
 
-
-/* ===================== PDF READER ===================== */
-.pdf-reader-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: #1a1a1a;
-  z-index: 4000;
-  flex-direction: column;
-}
-.pdf-reader-overlay.open { display: flex; }
-.pdf-reader-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  background: var(--primary);
-  color: #fff;
-  flex-shrink: 0;
-  gap: 12px;
-}
-.pdf-reader-title {
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 600;
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.pdf-reader-close {
-  background: rgba(255,255,255,0.2);
-  border: none;
-  color: #fff;
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  font-size: 18px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.pdf-reader-close:hover { background: rgba(255,255,255,0.35); }
-.pdf-reader-open-btn {
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.3);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.pdf-reader-frame {
-  flex: 1;
-  width: 100%;
-  border: none;
-  background: #2a2a2a;
-}
-
 /* ===================== TOAST ===================== */
 #toast {
   position: fixed;
@@ -1316,16 +1256,6 @@ tr:last-child td { border-bottom: none; }
     <span class="nav-icon">💾</span>Backup
   </button>
 </nav>
-
-<!-- PDF READER OVERLAY -->
-<div class="pdf-reader-overlay" id="pdfReader">
-  <div class="pdf-reader-bar">
-    <span class="pdf-reader-title" id="pdfReaderTitle">Reading…</span>
-    <button class="pdf-reader-open-btn" onclick="openPdfExternal()" title="Open in browser tab">⬆️ Open in Tab</button>
-    <button class="pdf-reader-close" onclick="closePdfReader()" title="Close">✕</button>
-  </div>
-  <iframe class="pdf-reader-frame" id="pdfReaderFrame" src="" allowfullscreen></iframe>
-</div>
 
 <!-- BOOK DETAIL MODAL -->
 <div class="modal-overlay" id="bookModal">
@@ -2099,28 +2029,10 @@ document.getElementById('bookModal').addEventListener('click', function(e) {
 });
 
 // ===================== PDF =====================
-let currentPdfUrl = null;
-
 function openPdf(id) {
   const b = library.find(x=>x.id===id);
   if (!b || !b.pdf) { showToast('⚠️ No PDF attached'); return; }
-  currentPdfUrl = b.pdf;
-  document.getElementById('pdfReaderTitle').textContent = b.title;
-  document.getElementById('pdfReaderFrame').src = b.pdf;
-  document.getElementById('pdfReader').classList.add('open');
-  // Prevent body scroll while reader is open
-  document.body.style.overflow = 'hidden';
-}
-
-function closePdfReader() {
-  document.getElementById('pdfReader').classList.remove('open');
-  document.getElementById('pdfReaderFrame').src = '';
-  document.body.style.overflow = '';
-  currentPdfUrl = null;
-}
-
-function openPdfExternal() {
-  if (currentPdfUrl) window.open(currentPdfUrl, '_blank');
+  window.open(b.pdf, '_blank');
 }
 
 // ===================== BACKUP =====================
