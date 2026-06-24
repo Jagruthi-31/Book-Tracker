@@ -294,6 +294,73 @@ img { max-width: 100%; }
   margin-top: 8px;
 }
 
+
+/* ===================== CURRENTLY READING CARD ===================== */
+.currently-reading-list { display: flex; flex-direction: column; gap: 12px; }
+.cr-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s;
+}
+.cr-card:hover { box-shadow: var(--shadow-md); }
+.cr-cover {
+  width: 56px; height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: var(--shadow-md);
+  flex-shrink: 0;
+}
+.cr-cover-ph {
+  width: 56px; height: 80px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.cr-info { flex: 1; min-width: 0; }
+.cr-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cr-author { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+.cr-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+.cr-progress-bar {
+  height: 7px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.cr-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+.cr-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cr-update-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.cr-update-row input { width: 80px; font-size: 13px; padding: 5px 8px; }
+
 /* ===================== LAST BOOK ===================== */
 .last-book-card {
   display: flex;
@@ -745,6 +812,104 @@ tr:last-child td { border-bottom: none; }
 }
 .modal-review { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light); font-size: 13px; color: var(--text-muted); line-height: 1.6; font-style: italic; }
 
+
+/* ===================== PDF READER ===================== */
+.pdf-reader-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  flex-direction: column;
+  background: #f5f0e8;
+}
+.pdf-reader-overlay.open { display: flex; }
+.pdf-reader-overlay.night { background: #1a1a1a; }
+.pdf-reader-overlay.sepia { background: #f4ecd8; }
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--primary);
+  color: #fff;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.pdf-toolbar-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.pdf-tool-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.pdf-tool-btn:hover { background: rgba(255,255,255,0.3); }
+.pdf-tool-btn.active { background: rgba(255,255,255,0.4); border-color: #fff; }
+.pdf-tool-close {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.pdf-tool-close:hover { background: rgba(255,255,255,0.4); }
+.pdf-tool-divider {
+  width: 1px; height: 20px;
+  background: rgba(255,255,255,0.25);
+  flex-shrink: 0;
+}
+
+/* Single page view */
+.pdf-reader-body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+.pdf-reader-body iframe {
+  width: 100%;
+  max-width: 800px;
+  height: 100%;
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+}
+
+/* Two page view */
+.pdf-reader-body.two-page {
+  gap: 12px;
+  padding: 12px;
+}
+.pdf-reader-body.two-page iframe {
+  max-width: none;
+  width: calc(50% - 6px);
+}
+
+/* Night mode filter on iframes */
+.pdf-reader-overlay.night .pdf-reader-body { background: #111; }
+.pdf-reader-overlay.sepia .pdf-reader-body { background: #f4ecd8; }
+
 /* ===================== TOAST ===================== */
 #toast {
   position: fixed;
@@ -863,6 +1028,13 @@ tr:last-child td { border-bottom: none; }
     <div class="stat-card"><div class="stat-number" id="statRead">0</div><div class="stat-label">Books Read</div></div>
     <div class="stat-card"><div class="stat-number" id="statReading">0</div><div class="stat-label">Reading Now</div></div>
     <div class="stat-card"><div class="stat-number" id="statWant">0</div><div class="stat-label">Want to Read</div></div>
+  </div>
+
+
+  <!-- CURRENTLY READING -->
+  <div id="currentlyReadingCard" style="margin-bottom:20px;display:none;">
+    <div class="section-label">📖 Currently Reading</div>
+    <div id="currentlyReadingArea"></div>
   </div>
 
   <!-- READING GOAL -->
@@ -1256,6 +1428,26 @@ tr:last-child td { border-bottom: none; }
     <span class="nav-icon">💾</span>Backup
   </button>
 </nav>
+
+<!-- PDF READER OVERLAY -->
+<div class="pdf-reader-overlay" id="pdfReader">
+  <div class="pdf-toolbar">
+    <span class="pdf-toolbar-title" id="pdfReaderTitle">Reading…</span>
+    <div class="pdf-tool-divider"></div>
+    <button class="pdf-tool-btn" id="btnLight" onclick="setPdfTheme('light')" title="Light mode">☀️ Light</button>
+    <button class="pdf-tool-btn" id="btnSepia" onclick="setPdfTheme('sepia')" title="Sepia">🟤 Sepia</button>
+    <button class="pdf-tool-btn" id="btnNight" onclick="setPdfTheme('night')" title="Night mode">🌙 Night</button>
+    <div class="pdf-tool-divider"></div>
+    <button class="pdf-tool-btn active" id="btnSingle" onclick="setPdfLayout('single')" title="Single page">📄 Single</button>
+    <button class="pdf-tool-btn" id="btnDouble" onclick="setPdfLayout('double')" title="Two page view">📖 2-Page</button>
+    <div class="pdf-tool-divider"></div>
+    <button class="pdf-tool-btn" onclick="openPdfExternal()" title="Open in tab">⬆️ Tab</button>
+    <button class="pdf-tool-close" onclick="closePdfReader()" title="Close">✕</button>
+  </div>
+  <div class="pdf-reader-body" id="pdfReaderBody">
+    <iframe id="pdfReaderFrame" src="" allowfullscreen></iframe>
+  </div>
+</div>
 
 <!-- BOOK DETAIL MODAL -->
 <div class="modal-overlay" id="bookModal">
@@ -1904,6 +2096,7 @@ function renderDashboard() {
   renderDonutChart('sourceChart', library, 'source');
   renderRatingChart();
   renderYear();
+  renderCurrentlyReading();
 }
 
 const CHART_COLORS = ['#6b1a1a','#c0856a','#c9a84c','#7a5c8a','#3a7a5c','#5c7a9a','#9a5c3a','#6a7a3a'];
@@ -2028,11 +2221,128 @@ document.getElementById('bookModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
 
-// ===================== PDF =====================
+// ===================== PDF READER =====================
+let currentPdfUrl = null;
+let pdfTheme = localStorage.getItem('bp_pdf_theme') || 'light';
+let pdfLayout = localStorage.getItem('bp_pdf_layout') || 'single';
+
 function openPdf(id) {
-  const b = library.find(x=>x.id===id);
+  const b = library.find(x => x.id === id);
   if (!b || !b.pdf) { showToast('⚠️ No PDF attached'); return; }
-  window.open(b.pdf, '_blank');
+  currentPdfUrl = b.pdf;
+  document.getElementById('pdfReaderTitle').textContent = b.title;
+  document.getElementById('pdfReaderFrame').src = b.pdf;
+  const overlay = document.getElementById('pdfReader');
+  overlay.className = 'pdf-reader-overlay open';
+  applyPdfTheme(pdfTheme);
+  applyPdfLayout(pdfLayout);
+  document.body.style.overflow = 'hidden';
+}
+
+function closePdfReader() {
+  document.getElementById('pdfReader').classList.remove('open');
+  document.getElementById('pdfReaderFrame').src = '';
+  document.body.style.overflow = '';
+  currentPdfUrl = null;
+}
+
+function openPdfExternal() {
+  if (currentPdfUrl) window.open(currentPdfUrl, '_blank');
+}
+
+function setPdfTheme(t) {
+  pdfTheme = t;
+  localStorage.setItem('bp_pdf_theme', t);
+  applyPdfTheme(t);
+}
+
+function applyPdfTheme(t) {
+  const overlay = document.getElementById('pdfReader');
+  overlay.classList.remove('night', 'sepia');
+  if (t === 'night') overlay.classList.add('night');
+  if (t === 'sepia') overlay.classList.add('sepia');
+  ['btnLight','btnSepia','btnNight'].forEach(id => document.getElementById(id).classList.remove('active'));
+  const map = { light:'btnLight', sepia:'btnSepia', night:'btnNight' };
+  if (map[t]) document.getElementById(map[t]).classList.add('active');
+}
+
+function setPdfLayout(l) {
+  pdfLayout = l;
+  localStorage.setItem('bp_pdf_layout', l);
+  applyPdfLayout(l);
+}
+
+function applyPdfLayout(l) {
+  const body = document.getElementById('pdfReaderBody');
+  const frame = document.getElementById('pdfReaderFrame');
+  if (l === 'double') {
+    body.classList.add('two-page');
+    // For two-page: show two iframes side by side
+    let frame2 = document.getElementById('pdfReaderFrame2');
+    if (!frame2) {
+      frame2 = document.createElement('iframe');
+      frame2.id = 'pdfReaderFrame2';
+      frame2.allowFullscreen = true;
+      body.appendChild(frame2);
+    }
+    frame2.src = currentPdfUrl || '';
+    frame2.style.display = 'block';
+    document.getElementById('btnSingle').classList.remove('active');
+    document.getElementById('btnDouble').classList.add('active');
+  } else {
+    body.classList.remove('two-page');
+    const frame2 = document.getElementById('pdfReaderFrame2');
+    if (frame2) frame2.style.display = 'none';
+    document.getElementById('btnDouble').classList.remove('active');
+    document.getElementById('btnSingle').classList.add('active');
+  }
+}
+
+// ===================== CURRENTLY READING =====================
+function updateCurrentPage(id) {
+  const input = document.getElementById('cr-input-' + id);
+  if (!input) return;
+  const page = parseInt(input.value);
+  if (!page || page < 0) { showToast('Enter a valid page number'); return; }
+  library = library.map(b => b.id === id ? { ...b, currentPage: page } : b);
+  saveLibrary();
+  renderCurrentlyReading();
+  renderDashboard();
+  showToast('📖 Progress updated!');
+}
+
+function renderCurrentlyReading() {
+  const books = library.filter(b => b.status === 'Reading');
+  const card = document.getElementById('currentlyReadingCard');
+  const area = document.getElementById('currentlyReadingArea');
+  if (!books.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  area.innerHTML = `<div class="currently-reading-list">${books.map(b => {
+    const pct = b.pages && b.currentPage ? Math.min(100, Math.round((b.currentPage / b.pages) * 100)) : 0;
+    const pagesLeft = b.pages && b.currentPage ? b.pages - b.currentPage : null;
+    return `<div class="cr-card">
+      ${b.cover ? `<img src="${b.cover}" class="cr-cover" alt=""/>` : `<div class="cr-cover-ph">📚</div>`}
+      <div class="cr-info">
+        <div class="cr-title">${b.title}</div>
+        <div class="cr-author">by ${b.author}</div>
+        <div class="cr-progress-label">
+          <span>${b.currentPage ? b.currentPage + ' of ' + (b.pages||'?') + ' pages' : 'Update your progress'}</span>
+          <span>${pct}%${pagesLeft ? ' · ~' + pagesLeft + ' left' : ''}</span>
+        </div>
+        <div class="cr-progress-bar">
+          <div class="cr-progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="cr-actions">
+          <div class="cr-update-row">
+            <input type="number" id="cr-input-${b.id}" placeholder="Page #" min="0" max="${b.pages||9999}" value="${b.currentPage||''}"/>
+            <button class="btn-sm" onclick="updateCurrentPage('${b.id}')">Update</button>
+          </div>
+          ${b.pdf ? `<button class="btn-sm" onclick="openPdf('${b.id}')" style="background:var(--bg-section);color:var(--text);">📄 Read PDF</button>` : ''}
+          <button class="btn-sm" onclick="editBook('${b.id}')" style="background:var(--bg-section);color:var(--text);">✏️ Edit</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 // ===================== BACKUP =====================
