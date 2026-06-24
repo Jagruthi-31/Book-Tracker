@@ -882,31 +882,38 @@ tr:last-child td { border-bottom: none; }
 /* Single page view */
 .pdf-reader-body {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
-  justify-content: center;
-  padding: 16px;
+  padding: 0;
+  background: inherit;
 }
 .pdf-reader-body iframe {
+  flex: 1;
   width: 100%;
-  max-width: 800px;
   height: 100%;
   border: none;
-  border-radius: 4px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+  display: block;
 }
 
-/* Two page view */
+/* Two page view — side by side, equal halves */
 .pdf-reader-body.two-page {
-  gap: 12px;
-  padding: 12px;
+  gap: 2px;
+  padding: 0;
 }
 .pdf-reader-body.two-page iframe {
-  max-width: none;
-  width: calc(50% - 6px);
+  flex: 1;
+  width: 50%;
+  height: 100%;
 }
 
-/* Night mode filter on iframes */
+/* Mobile: hide 2-page button, keep single full screen */
+@media (max-width: 600px) {
+  #btnDouble, #btnSingle { display: none; }
+  .pdf-toolbar { gap: 6px; padding: 8px 10px; }
+  .pdf-tool-divider { display: none; }
+}
+
+/* Night/sepia backgrounds */
 .pdf-reader-overlay.night .pdf-reader-body { background: #111; }
 .pdf-reader-overlay.sepia .pdf-reader-body { background: #f4ecd8; }
 
@@ -2274,23 +2281,29 @@ function setPdfLayout(l) {
 
 function applyPdfLayout(l) {
   const body = document.getElementById('pdfReaderBody');
-  const frame = document.getElementById('pdfReaderFrame');
   if (l === 'double') {
     body.classList.add('two-page');
-    // For two-page: show two iframes side by side
+    // Two-page: left iframe shows PDF normally (browser will show page 1)
+    // Right iframe shows PDF with #page=2 so they show consecutive pages
     let frame2 = document.getElementById('pdfReaderFrame2');
     if (!frame2) {
       frame2 = document.createElement('iframe');
       frame2.id = 'pdfReaderFrame2';
-      frame2.allowFullscreen = true;
+      frame2.style.cssText = 'flex:1;width:50%;height:100%;border:none;display:block;';
       body.appendChild(frame2);
     }
-    frame2.src = currentPdfUrl || '';
+    // Left shows from page 1, right shows from page 2 using PDF fragment identifier
+    const base = currentPdfUrl || '';
+    const sep = base.includes('?') ? '&' : '#';
+    document.getElementById('pdfReaderFrame').src = base + sep + 'page=1';
+    frame2.src = base + sep + 'page=2';
     frame2.style.display = 'block';
     document.getElementById('btnSingle').classList.remove('active');
     document.getElementById('btnDouble').classList.add('active');
   } else {
     body.classList.remove('two-page');
+    // Reload cleanly without page fragment
+    document.getElementById('pdfReaderFrame').src = currentPdfUrl || '';
     const frame2 = document.getElementById('pdfReaderFrame2');
     if (frame2) frame2.style.display = 'none';
     document.getElementById('btnDouble').classList.remove('active');
