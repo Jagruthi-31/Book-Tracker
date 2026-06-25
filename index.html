@@ -881,15 +881,28 @@ tr:last-child td { border-bottom: none; }
 
 .pdf-page-info {
   font-size: 12px;
-  color: rgba(255,255,255,0.8);
-  white-space: nowrap;
-  min-width: 60px;
+  color: #fff;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 5px;
+  min-width: 70px;
   text-align: center;
+  padding: 4px 6px;
+  cursor: text;
+  font-family: var(--font-body);
+}
+.pdf-page-info:focus {
+  outline: none;
+  background: rgba(255,255,255,0.25);
+  border-color: rgba(255,255,255,0.6);
 }
 @media (max-width: 600px) {
-  #btnDouble { display: none; }
+  #btnDouble { display: inline-flex; }
+  #btnExternal { display: none; } /* no need — single already opens in browser */
   .pdf-tool-divider { display: none; }
-  .pdf-toolbar { gap: 5px; padding: 8px 10px; }
+  .pdf-toolbar { gap: 5px; padding: 8px 10px; flex-wrap: nowrap; }
+  .pdf-tool-btn { font-size: 11px; padding: 4px 8px; }
+  .pdf-toolbar-title { font-size: 0.8rem; }
 }
 
 /* ===================== TOAST ===================== */
@@ -1417,12 +1430,12 @@ tr:last-child td { border-bottom: none; }
     <button class="pdf-tool-close" onclick="closePdfReader()" title="Close">✕</button>
     <span class="pdf-toolbar-title" id="pdfReaderTitle">Reading…</span>
     <button class="pdf-tool-btn" id="btnPrev" onclick="pdfPrevSpread()" title="Previous page">‹ Prev</button>
-    <span class="pdf-page-info" id="pdfPageInfo">— / —</span>
+    <input class="pdf-page-info" id="pdfPageInfo" value="— / —" title="Type a page number and press Enter" onkeydown="pdfGoToPage(event)" style="cursor:text;"/>
     <button class="pdf-tool-btn" id="btnNext" onclick="pdfNextSpread()" title="Next page">Next ›</button>
     <div class="pdf-tool-divider"></div>
     <button class="pdf-tool-btn active" id="btnSingle" onclick="setPdfLayout('single')">📄 Single</button>
     <button class="pdf-tool-btn" id="btnDouble" onclick="setPdfLayout('double')">📖 Book</button>
-    <button class="pdf-tool-btn" onclick="openPdfExternal()" title="Open in tab">⬆️</button>
+    <button class="pdf-tool-btn" id="btnExternal" onclick="openPdfExternal()" title="Open in tab">⬆️</button>
   </div>
   <!-- Single view: native iframe (works perfectly as confirmed) -->
   <div id="pdfSingleView" style="flex:1;display:flex;overflow:hidden;">
@@ -2276,11 +2289,19 @@ function applyPdfLayout(l) {
   const book = document.getElementById('pdfBookView');
   document.getElementById('btnSingle').classList.toggle('active', l === 'single');
   document.getElementById('btnDouble').classList.toggle('active', l === 'double');
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
   if (l === 'single') {
+    if (isMobile) {
+      // On mobile, iframe shows "Open" button instead of rendering
+      // — open directly in browser tab, then close the overlay
+      closePdfReader();
+      window.open(currentPdfUrl, '_blank');
+      return;
+    }
     single.style.display = 'flex';
     book.style.display = 'none';
     document.getElementById('pdfReaderFrame').src = currentPdfUrl || '';
-    document.getElementById('pdfPageInfo').textContent = '';
+    document.getElementById('pdfPageInfo').value = '';
     document.getElementById('btnPrev').style.display = 'none';
     document.getElementById('btnNext').style.display = 'none';
   } else {
@@ -2296,7 +2317,7 @@ function applyPdfLayout(l) {
 async function loadBookView(url) {
   if (!url) return;
   try {
-    document.getElementById('pdfPageInfo').textContent = 'Loading…';
+    document.getElementById('pdfPageInfo').value = 'Loading…';
     const loadingTask = window.pdfjsLib.getDocument(url);
     pdfJsDoc = await loadingTask.promise;
     pdfTotalPages = pdfJsDoc.numPages;
@@ -2304,7 +2325,7 @@ async function loadBookView(url) {
     await renderSpread(pdfCurrentSpread);
   } catch(e) {
     console.error('PDF.js load failed', e);
-    document.getElementById('pdfPageInfo').textContent = 'Error loading PDF';
+    document.getElementById('pdfPageInfo').value = 'Error';
     showToast('⚠️ Could not load book view — try Single view');
   }
 }
@@ -2315,13 +2336,15 @@ async function renderSpread(leftPage) {
 
   const canvasL = document.getElementById('pdfCanvasLeft');
   const canvasR = document.getElementById('pdfCanvasRight');
-  const wrap = document.getElementById('pdfSpreadWrap');
-  const availH = wrap.clientHeight - 24;
-  const availW = (wrap.clientWidth - 28) / 2;
+  const toolbarH = document.querySelector('.pdf-toolbar').offsetHeight || 50;
+  // Use full window size so pages always fill the screen
+  const availH = window.innerHeight - toolbarH - 24;
+  const isCover = leftPage === 1;
+  // Cover: single page gets full width. Spread: each page gets half.
+  const availW = isCover ? (window.innerWidth - 32) : ((window.innerWidth - 32) / 2);
 
   async function renderPage(canvas, pageNum) {
     if (pageNum < 1 || pageNum > pdfTotalPages) {
-      // blank canvas for out-of-range (e.g. last page is odd)
       canvas.style.display = 'none';
       return;
     }
@@ -2332,12 +2355,11 @@ async function renderSpread(leftPage) {
     const vp = page.getViewport({ scale });
     canvas.width = vp.width;
     canvas.height = vp.height;
-    canvas.style.maxHeight = availH + 'px';
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
   }
 
-  // Page 1 is a cover — show alone on first spread, then pairs: 2-3, 4-5 …
-  if (leftPage === 1) {
+  // Page 1 is a cover — show alone centered, then pairs: 2-3, 4-5 …
+  if (isCover) {
     canvasL.style.display = 'none';
     await renderPage(canvasR, 1);
   } else {
@@ -2348,12 +2370,10 @@ async function renderSpread(leftPage) {
   }
 
   pdfCurrentSpread = leftPage;
-  const rightPage = leftPage === 1 ? 1 : leftPage + 1;
+  const rightPage = isCover ? 1 : leftPage + 1;
   const displayRight = Math.min(rightPage, pdfTotalPages);
-  document.getElementById('pdfPageInfo').textContent =
-    leftPage === 1
-      ? `1 / ${pdfTotalPages}`
-      : `${leftPage}–${displayRight} / ${pdfTotalPages}`;
+  const infoEl = document.getElementById('pdfPageInfo');
+  infoEl.value = isCover ? `1 / ${pdfTotalPages}` : `${leftPage}–${displayRight} / ${pdfTotalPages}`;
   pdfRendering = false;
 }
 
@@ -2372,6 +2392,22 @@ function pdfPrevSpread() {
   if (pdfCurrentSpread <= 2) prev = 1;            // back to cover
   else prev = pdfCurrentSpread - 2;
   renderSpread(prev);
+}
+
+function pdfGoToPage(e) {
+  if (e.key !== 'Enter') return;
+  const val = parseInt(document.getElementById('pdfPageInfo').value);
+  if (!val || val < 1 || val > pdfTotalPages) {
+    showToast('Page ' + val + ' out of range (1–' + pdfTotalPages + ')');
+    return;
+  }
+  // Snap to correct spread start
+  let target = val;
+  if (target > 1 && target % 2 === 0) target = target; // even — left page of spread
+  else if (target > 1) target = target - 1;              // odd — start from previous even
+  if (target < 2) target = 1;
+  renderSpread(target);
+  document.getElementById('pdfPageInfo').blur();
 }
 
 // Keyboard support: left/right arrow keys to turn pages
